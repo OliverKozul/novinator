@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Subscribe to Our Newsletter</h1>
+
+{% if success %}
+<p style="color: green; font-size: 18px;">{{ success }}</p>
+{% elif error %}
+<p style="color: red; font-size: 18px;">{{ error }}</p>
+{% endif %}
+
+{% if not process_complete %}
+<form method="post" action="/">
+    <div class="form-group">
+        <label for="email">Email Address:</label>
+        <input type="email" name="email" id="email" required>
+    </div>
+
+    {% if not subscribed %}
+        <div class="form-group">
+            <label>Select Topics:</label>
+            <div class="checkbox-group">
+                {% for subject in subjects %}
+                <label>
+                    <input type="checkbox" name="subjects" value="{{ subject }}"> {{ subject }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" name="action" value="subscribe">Subscribe</button>
+            <button type="submit" name="action" value="unsubscribe">Unsubscribe</button>
+        </div>
+    {% endif %}
+</form>
+{% endif %}
+{% endblock %}
