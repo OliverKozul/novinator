@@ -6,3 +6,4 @@ pydantic[email]
 alembic
 jinja2
 python-multipart
+boto3
