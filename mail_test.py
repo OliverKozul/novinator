@@ -2,6 +2,8 @@ import boto3
 import hashlib
 import time
 from botocore.exceptions import ClientError, NoCredentialsError
+from dotenv import load_dotenv
+import os
 
 def generate_filename(subject: str) -> str:
     sanitized_subject = subject.lower().replace(" ", "-")
@@ -25,23 +27,22 @@ def upload_email_to_s3(bucket_name: str, key: str, email_body: str):
     except Exception as e:
         print("An error occurred:", e)
 
-def append_unsubscribe_link_html(body: str, email: str) -> str:
-    email_hash = hashlib.sha256(email.encode()).hexdigest()
-    unsubscribe_url = f"https://pmf.blokada.info/unsubscribe_{email_hash}"
+def append_unsubscribe_link_html(body: str) -> str:
+    unsubscribe_url = os.getenv('UNSUBSCRIBE_URL')
     unsubscribe_html = f'<p style="margin-top: 20px;">To unsubscribe, <a href="{unsubscribe_url}" target="_blank">click here</a>.</p>'
 
     return f"<div>{body}</div>{unsubscribe_html}"
 
-def send_email_via_ses(subject: str, body: str, to_email: str):
-    sender_email = "no-reply@blokada.info"
+def send_email_via_ses(subject: str, body: str, recipients: list):
+    sender_email = os.getenv('SENDER_EMAIL')
     ses_client = boto3.client("ses")
-    email_body_with_unsubscribe_html = append_unsubscribe_link_html(body, to_email)
+    email_body_with_unsubscribe_html = append_unsubscribe_link_html(body)
 
     try:
         response = ses_client.send_email(
             Source=sender_email,
             Destination={
-                "ToAddresses": [to_email],
+                "BccAddresses": recipients
             },
             Message={
                 "Subject": {"Data": subject},
@@ -50,12 +51,12 @@ def send_email_via_ses(subject: str, body: str, to_email: str):
                 },
             }
         )
-        print(f"Email sent to {to_email} successfully: {response}")
+        print(f"Email sent successfully: {response}")
     except ClientError as e:
         print(f"Failed to send email: {e.response['Error']['Message']}")
 
 def archive_email(subject: str, body: str):
-    S3_BUCKET = "novinomator-email-archive"
+    S3_BUCKET = os.getenv('S3_BUCKET')
     email_body_for_s3 = f"""
     Subject: {subject}
 
@@ -64,6 +65,7 @@ def archive_email(subject: str, body: str):
     upload_email_to_s3(S3_BUCKET, generate_filename(subject), email_body_for_s3)
 
 def send_newsletter(subject: str, body: str, subscribers: list):
+    load_dotenv()
+    subscriber_emails = [subscriber['email'] for subscriber in subscribers]
     archive_email(subject, body)
-    for subscriber in subscribers:
-        send_email_via_ses(subject, body, subscriber['email'])
+    send_email_via_ses(subject, body, subscriber_emails)
