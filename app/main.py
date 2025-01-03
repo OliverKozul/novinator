@@ -2,18 +2,16 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from app.database import create_tables
-from app.models import Subscription, Subscriber
-from app.database import SessionLocal
+from app.aws_dynamodb import add_user, update_user_topics, get_user_by_email, delete_user
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
 templates = Jinja2Templates(directory="app/templates")
 
 @app.on_event("startup")
 def startup():
-    create_tables()
+    # You may want to ensure that your DynamoDB table is created before handling requests
+    pass
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -27,16 +25,12 @@ def handle_subscription(
     action: str = Form(...), 
     subjects: list[str] = Form([])
 ):
-    db = SessionLocal()
     if action == "subscribe":
-        existing_subscriber = db.query(Subscriber).filter(Subscriber.email == email).first()
-        if existing_subscriber:
-            db.query(Subscription).filter(Subscription.subscriber_id == existing_subscriber.id).delete()
-            for subject in subjects:
-                new_subscription = Subscription(subject=subject, subscriber_id=existing_subscriber.id)
-                db.add(new_subscription)
-            db.commit()
-            db.close()
+        # Check if the user already exists in DynamoDB
+        existing_user = get_user_by_email(email)
+        if existing_user:
+            # Update the user's subscription topics in DynamoDB
+            update_user_topics(email, subjects)
             return templates.TemplateResponse(
                 "home.html",
                 {
@@ -47,17 +41,9 @@ def handle_subscription(
                     "process_complete": True,
                 }
             )
-        new_subscriber = Subscriber(email=email)
-        db.add(new_subscriber)
-        db.commit()
-        db.refresh(new_subscriber)
-
-        for subject in subjects:
-            subscription = Subscription(subject=subject, subscriber_id=new_subscriber.id)
-            db.add(subscription)
-        db.commit()
-        db.close()
-
+        
+        # If the user does not exist, add them to DynamoDB
+        add_user(email, subjects)
         return templates.TemplateResponse(
             "home.html",
             {
@@ -70,9 +56,8 @@ def handle_subscription(
         )
 
     elif action == "unsubscribe":
-        existing_subscriber = db.query(Subscriber).filter(Subscriber.email == email).first()
-        if not existing_subscriber:
-            db.close()
+        existing_user = get_user_by_email(email)
+        if not existing_user:
             return templates.TemplateResponse(
                 "home.html",
                 {
@@ -83,11 +68,8 @@ def handle_subscription(
                     "process_complete": True,
                 }
             )
-        db.query(Subscription).filter(Subscription.subscriber_id == existing_subscriber.id).delete()
-        db.delete(existing_subscriber)
-        db.commit()
-        db.close()
-
+        # Remove user from subscriptions and delete from DynamoDB
+        delete_user(email)
         return templates.TemplateResponse(
             "home.html",
             {

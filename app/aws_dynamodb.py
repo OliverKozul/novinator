@@ -1,5 +1,4 @@
 import boto3
-from mail_test import send_newsletter
 
 dynamodb = boto3.resource('dynamodb')
 
@@ -70,6 +69,7 @@ def delete_user(email: str):
     )
     print(f"Deleted user with email: {email}")
 
+"""
 def display_menu():
     print("\nChoose an option:")
     print("1. Add User")
@@ -126,4 +126,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+
+"""
