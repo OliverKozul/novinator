@@ -32,3 +32,7 @@ To run this project locally, you need the following:
    ```bash
    uvicorn app.main:app --reload
    ```
+5. (Optional) Test DynamoDB:
+    ```bash
+    python .\dynamo_db_test.py
+    ```
