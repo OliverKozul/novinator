@@ -28,10 +28,7 @@ To run this project locally, you need the following:
     ```bash
     pip install -r requirements.txt
     ```
-4. Run the app or test DynamoDB:
+4. Run the app:
    ```bash
    uvicorn app.main:app --reload
    ```
-    ```bash
-    python .\dynamo_db_test.py
-    ```
